@@ -1,10 +1,20 @@
-import { DIFFICULTY_LABELS, MODE_LABELS, type GameResult, type Scores } from '../types'
+import type { GameMode } from '../engine/types'
+import type { ResolvedPlayerColors } from '../colors'
+import {
+  DIFFICULTY_LABELS,
+  MODE_LABELS,
+  playerLabel,
+  type GameResult,
+  type Scores,
+} from '../types'
 import { IconRefresh, IconTrash } from './icons'
 
 interface ScorePanelProps {
   scores: Scores
   history: GameResult[]
+  mode: GameMode
   modeLabel: string
+  colors: ResolvedPlayerColors
   onReplay: () => void
   onResetScores: () => void
 }
@@ -18,11 +28,25 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp))
 }
 
-export function ScorePanel({ scores, history, modeLabel, onReplay, onResetScores }: ScorePanelProps) {
+function historyLabel(result: GameResult): string {
+  if (result.winner === 'draw') return 'Égalité'
+  if (result.mode === 'ai') return result.winner === 'red' ? 'Victoire' : 'Défaite'
+  return result.winner === 'red' ? 'Joueur 1' : 'Joueur 2'
+}
+
+export function ScorePanel({
+  scores,
+  history,
+  mode,
+  modeLabel,
+  colors,
+  onReplay,
+  onResetScores,
+}: ScorePanelProps) {
   const stats = [
-    { label: 'Rouge', value: scores.red, className: 'text-coral-2', dot: 'bg-coral' },
-    { label: 'Bleu', value: scores.blue, className: 'text-electric-2', dot: 'bg-electric' },
-    { label: 'Égalités', value: scores.draws, className: 'text-mist', dot: 'bg-mist-dim' },
+    { label: playerLabel('red', mode), value: scores.red, color: colors.red.hex },
+    { label: playerLabel('blue', mode), value: scores.blue, color: colors.blue.hex },
+    { label: 'Égalités', value: scores.draws, color: '#8496bd' },
   ]
 
   return (
@@ -38,9 +62,11 @@ export function ScorePanel({ scores, history, modeLabel, onReplay, onResetScores
             key={stat.label}
             className="rounded-2xl bg-white/[0.04] p-3 text-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]"
           >
-            <div className={`text-2xl font-bold tabular-nums ${stat.className}`}>{stat.value}</div>
+            <div className="text-2xl font-bold tabular-nums" style={{ color: stat.color }}>
+              {stat.value}
+            </div>
             <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-mist-dim">
-              <span className={`h-1.5 w-1.5 rounded-full ${stat.dot}`} />
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: stat.color }} />
               {stat.label}
             </div>
           </div>
@@ -75,21 +101,17 @@ export function ScorePanel({ scores, history, modeLabel, onReplay, onResetScores
               >
                 <span className="flex items-center gap-2.5">
                   <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      result.winner === 'red'
-                        ? 'bg-coral'
-                        : result.winner === 'blue'
-                          ? 'bg-electric'
-                          : 'bg-mist-dim'
-                    }`}
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      background:
+                        result.winner === 'red'
+                          ? colors.red.hex
+                          : result.winner === 'blue'
+                            ? colors.blue.hex
+                            : '#8496bd',
+                    }}
                   />
-                  <span className="text-mist">
-                    {result.winner === 'draw'
-                      ? 'Égalité'
-                      : result.winner === 'red'
-                        ? 'Victoire rouge'
-                        : 'Victoire bleue'}
-                  </span>
+                  <span className="text-mist">{historyLabel(result)}</span>
                 </span>
                 <span className="text-[11px] text-mist-dim">
                   {MODE_LABELS[result.mode]}

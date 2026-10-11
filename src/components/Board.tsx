@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { COLS, ROWS, getDropRow } from '../engine/board'
 import type { Board as BoardModel, Player, Position } from '../engine/types'
+import { discShades, withAlpha } from '../colors'
 
 interface BoardProps {
   board: BoardModel
@@ -9,6 +10,7 @@ interface BoardProps {
   lastMove: Position | null
   moveCount: number
   disabled: boolean
+  colors: Record<Player, string>
   onColumnClick: (column: number) => void
 }
 
@@ -27,9 +29,23 @@ export function Board({
   lastMove,
   moveCount,
   disabled,
+  colors,
   onColumnClick,
 }: BoardProps) {
   const [hoverColumn, setHoverColumn] = useState<number | null>(null)
+
+  const shadeStyles = useMemo(() => {
+    const build = (hex: string) => {
+      const shades = discShades(hex)
+      return {
+        '--disc-hi': shades.hi,
+        '--disc-base': shades.base,
+        '--disc-lo': shades.lo,
+        '--glow': withAlpha(hex, 0.85),
+      } as React.CSSProperties
+    }
+    return { red: build(colors.red), blue: build(colors.blue) }
+  }, [colors.red, colors.blue])
 
   const cells: React.ReactNode[] = []
 
@@ -46,18 +62,16 @@ export function Board({
           <div className="hole absolute inset-0 rounded-full" />
           {player && (
             <div
-              className={`disc ${player === 'red' ? 'disc-red' : 'disc-blue'} ${winning ? 'anim-win' : ''} ${justDropped ? 'anim-drop' : ''}`}
+              className={`disc ${winning ? 'anim-win' : ''} ${justDropped ? 'anim-drop' : ''}`}
               style={
                 {
+                  ...shadeStyles[player],
                   '--fall': `-${(row + 1) * 100}%`,
-                  '--glow': player === 'red' ? 'rgba(255,95,86,.85)' : 'rgba(80,150,255,.85)',
                 } as React.CSSProperties
               }
             />
           )}
-          {ghost && (
-            <div className={`disc disc-ghost ${currentPlayer === 'red' ? 'disc-red' : 'disc-blue'}`} />
-          )}
+          {ghost && <div className="disc disc-ghost" style={shadeStyles[currentPlayer]} />}
         </div>,
       )
     }

@@ -1,4 +1,4 @@
-# LUMA Connect — Puissance 4
+# Fouria — Puissance 4
 
 Jeu de **Puissance 4** web, moderne et responsive : partie à deux joueurs sur le même écran ou
 contre une IA à trois niveaux, avec animations, sons synthétisés et scores persistants.
@@ -12,6 +12,9 @@ Aucun backend, aucune compte, aucune dépendance runtime au-delà de React.
 - **Animation de chute** des jetons et **mise en évidence pulsée** des quatre jetons gagnants.
 - Affichage du **joueur actif**, du compteur de coups et de l'état de réflexion de l'IA.
 - **Scores et historique** des parties (localStorage), boutons *Rejouer* et *Réinitialiser*.
+- **Couleurs des joueurs personnalisables** (v1.1.0) : 8 teintes prédéfinies par joueur,
+  aperçu en direct des jetons, combinaisons identiques ou trop proches interdites,
+  contraste vérifié, préférence sauvegardée, applicable au mode IA.
 - **Effets sonores** synthétisés (Web Audio API, aucun fichier audio) avec bouton de coupure.
 - **Menu principal** avec sélection du mode et du niveau, **écran de victoire** avec
   confettis animés.
@@ -67,6 +70,7 @@ src/
 │   └── useSound.ts    # sons synthétisés (Web Audio API)
 ├── components/        # présentation uniquement (Board, MainMenu, ScorePanel…)
 ├── App.tsx            # orchestration : écrans, scores, coup de l'IA
+├── colors.ts          # palette joueurs, contraste WCAG, validation de paire (v1.1.0)
 ├── types.ts           # libellés et types partagés UI
 └── index.css          # thème sombre arcade, animations, jetons
 scripts/smoke.mjs      # vérification visuelle automatisée (optionnelle)
@@ -79,6 +83,8 @@ scripts/smoke.mjs      # vérification visuelle automatisée (optionnelle)
   coup). `playMove` renvoie exactement le même objet lorsque le coup est illégal, ce qui rend
   les tests et les comparaisons triviales.
 - L'interface ne fait que refléter l'état et envoyer des **coupes numéros de colonne** au moteur.
+- Les **couleurs de jetons** (v1.1.0) sont une couche purement visuelle : le moteur continue de
+  jouer `red` / `blue`, seule la teinte affichée change (`src/colors.ts`).
 - `chooseMove(board, player, difficulty)` est appelé par l'application via un simple `setTimeout`
   pour laisser l'écran se peindre : aucun couplage négatif, l'IA pourrait être remplacée par un
   serveur sans toucher au moteur.
@@ -107,6 +113,7 @@ facile en automatisé.
 | `luma.connect.history.v1` | 12 dernières parties (vainqueur, mode, date) |
 | `luma.connect.muted.v1` | préférence son |
 | `luma.connect.prefs.v1` | mode et niveau de difficulté retenus |
+| `luma.connect.colors.v1` | couleurs des jetons Joueur 1 / Joueur 2 (v1.1.0) |
 
 ## Tests
 
@@ -114,9 +121,10 @@ facile en automatisé.
 npm test
 ```
 
-35 tests couvrant : la grille (chute, colonnes pleines), la détection des quatre alignements
-dans les huit directions, les égalités, l'alternance des tours, la fin de partie figée, et les
-trois niveaux d'IA (victoire immédiate, blocage, coups valides).
+50 tests couvrant : la grille (chute, colonnes pleines), la détection des quatre alignements
+dans les huit directions, les égalités, l'alternance des tours, la fin de partie figée, les
+trois niveaux d'IA (victoire immédiate, blocage, coups valides) et la palette de couleurs
+joueurs (contraste WCAG, validation de paire, résolution robuste des préférences).
 
 ## Commandes de jeu
 

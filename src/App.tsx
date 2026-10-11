@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Board } from './components/Board'
 import { EndOverlay } from './components/EndOverlay'
 import { MainMenu } from './components/MainMenu'
 import { ScorePanel } from './components/ScorePanel'
 import { IconBack, IconVolume } from './components/icons'
+import {
+  DEFAULT_PLAYER_COLORS,
+  resolvePlayerColors,
+  type ColorId,
+  type PlayerColorPreference,
+} from './colors'
 import { chooseMove } from './engine/ai'
 import { createGame, playMove } from './engine/game'
 import type { Difficulty, GameMode, GameState, Player } from './engine/types'
@@ -24,6 +30,7 @@ const SCORES_KEY = 'luma.connect.scores.v1'
 const HISTORY_KEY = 'luma.connect.history.v1'
 const MUTED_KEY = 'luma.connect.muted.v1'
 const PREFS_KEY = 'luma.connect.prefs.v1'
+const COLORS_KEY = 'luma.connect.colors.v1'
 
 interface Preferences {
   mode: GameMode
@@ -42,9 +49,14 @@ export default function App() {
   const [scores, setScores] = useLocalStorage<Scores>(SCORES_KEY, EMPTY_SCORES)
   const [history, setHistory] = useLocalStorage<GameResult[]>(HISTORY_KEY, [])
   const [muted, setMuted] = useLocalStorage<boolean>(MUTED_KEY, false)
+  const [playerColors, setPlayerColors] = useLocalStorage<PlayerColorPreference>(
+    COLORS_KEY,
+    DEFAULT_PLAYER_COLORS,
+  )
 
   const sound = useSound(muted)
   const { mode, difficulty } = preferences
+  const colors = useMemo(() => resolvePlayerColors(playerColors), [playerColors])
 
   const recordResult = useCallback(
     (state: GameState) => {
@@ -161,6 +173,24 @@ export default function App() {
     setMuted((previous) => !previous)
   }, [muted, setMuted])
 
+  const changePlayerColor = useCallback(
+    (player: Player, colorId: ColorId) => {
+      const other = player === 'red' ? 'blue' : 'red'
+      if (playerColors[other] === colorId) {
+        sound('invalid')
+        return
+      }
+      setPlayerColors((previous) => ({ ...previous, [player]: colorId }))
+      sound('click')
+    },
+    [playerColors, setPlayerColors, sound],
+  )
+
+  const resetPlayerColors = useCallback(() => {
+    setPlayerColors(DEFAULT_PLAYER_COLORS)
+    sound('click')
+  }, [setPlayerColors, sound])
+
   if (screen === 'menu') {
     return (
       <MainMenu
@@ -168,8 +198,11 @@ export default function App() {
         difficulty={difficulty}
         scores={scores}
         muted={muted}
+        colors={colors}
         onSelectMode={(nextMode) => updatePreferences({ mode: nextMode })}
         onSelectDifficulty={(nextDifficulty) => updatePreferences({ difficulty: nextDifficulty })}
+        onSelectPlayerColor={changePlayerColor}
+        onResetPlayerColors={resetPlayerColors}
         onStart={startGame}
         onToggleMute={toggleMute}
       />
@@ -196,7 +229,7 @@ export default function App() {
 
           <div className="text-center">
             <p className="text-[11px] font-semibold tracking-[0.35em] text-electric-2 uppercase">
-              LUMA Connect
+              Fouria
             </p>
             <p className="text-xs text-mist-dim">
               {MODE_LABELS[mode]}
@@ -221,8 +254,12 @@ export default function App() {
               <span className="flex items-center gap-3">
                 <span
                   className={`h-4 w-4 rounded-full ${
-                    game.currentPlayer === 'red' ? 'bg-coral' : 'bg-electric'
-                  } ${boardLocked && game.status === 'playing' && isAiTurn ? 'anim-blink' : ''}`}
+                    boardLocked && game.status === 'playing' && isAiTurn ? 'anim-blink' : ''
+                  }`}
+                  style={{
+                    background:
+                      game.currentPlayer === 'red' ? colors.red.hex : colors.blue.hex,
+                  }}
                 />
                 <span className="text-sm text-mist">
                   {game.status === 'playing' ? (
@@ -250,6 +287,7 @@ export default function App() {
               lastMove={game.lastMove}
               moveCount={game.moveCount}
               disabled={boardLocked}
+              colors={{ red: colors.red.hex, blue: colors.blue.hex }}
               onColumnClick={handleColumnClick}
             />
           </div>
@@ -257,11 +295,13 @@ export default function App() {
           <ScorePanel
             scores={scores}
             history={history}
+            mode={mode}
             modeLabel={
               mode === 'ai'
                 ? `${MODE_LABELS.ai} · ${DIFFICULTY_LABELS[difficulty]}`
                 : MODE_LABELS.pvp
             }
+            colors={colors}
             onReplay={replay}
             onResetScores={resetScores}
           />
@@ -273,6 +313,7 @@ export default function App() {
           winner={game.winner ?? 'draw'}
           mode={mode}
           scores={scores}
+          colors={colors}
           onReplay={replay}
           onMenu={goToMenu}
         />

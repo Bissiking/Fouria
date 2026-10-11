@@ -1,19 +1,25 @@
-import type { Difficulty, GameMode } from '../engine/types'
+import type { Difficulty, GameMode, Player } from '../engine/types'
+import type { ColorId, ResolvedPlayerColors } from '../colors'
 import {
   DIFFICULTY_HINTS,
   DIFFICULTY_LABELS,
   MODE_LABELS,
+  playerLabel,
   type Scores,
 } from '../types'
 import { IconCpu, IconPlay, IconUsers, IconVolume } from './icons'
+import { PlayerColorSettings } from './PlayerColorSettings'
 
 interface MainMenuProps {
   mode: GameMode
   difficulty: Difficulty
   scores: Scores
   muted: boolean
+  colors: ResolvedPlayerColors
   onSelectMode: (mode: GameMode) => void
   onSelectDifficulty: (difficulty: Difficulty) => void
+  onSelectPlayerColor: (player: Player, colorId: ColorId) => void
+  onResetPlayerColors: () => void
   onStart: () => void
   onToggleMute: () => void
 }
@@ -25,8 +31,11 @@ export function MainMenu({
   difficulty,
   scores,
   muted,
+  colors,
   onSelectMode,
   onSelectDifficulty,
+  onSelectPlayerColor,
+  onResetPlayerColors,
   onStart,
   onToggleMute,
 }: MainMenuProps) {
@@ -57,7 +66,7 @@ export function MainMenu({
       <main className="relative mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-7 px-5 py-10">
         <header className="text-center">
           <p className="text-xs font-semibold tracking-[0.45em] text-electric-2 uppercase">
-            LUMA Connect
+            Fouria
           </p>
           <h1 className="anim-title mt-3 text-5xl font-black tracking-tight text-white sm:text-6xl">
             PUISSANCE <span className="text-coral-2">4</span>
@@ -126,15 +135,36 @@ export function MainMenu({
           )}
         </section>
 
+        <PlayerColorSettings
+          mode={mode}
+          colors={colors}
+          onSelect={onSelectPlayerColor}
+          onReset={onResetPlayerColors}
+        />
+
         <section className="flex items-center justify-between gap-4 rounded-3xl bg-white/[0.03] px-5 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]">
           <div className="flex gap-5 text-center">
             <div>
-              <div className="text-xl font-bold text-coral-2 tabular-nums">{scores.red}</div>
-              <div className="text-[11px] tracking-wider text-mist-dim uppercase">Rouge</div>
+              <div
+                className="text-xl font-bold tabular-nums"
+                style={{ color: colors.red.hex }}
+              >
+                {scores.red}
+              </div>
+              <div className="text-[11px] tracking-wider text-mist-dim uppercase">
+                {playerLabel('red', mode)}
+              </div>
             </div>
             <div>
-              <div className="text-xl font-bold text-electric-2 tabular-nums">{scores.blue}</div>
-              <div className="text-[11px] tracking-wider text-mist-dim uppercase">Bleu</div>
+              <div
+                className="text-xl font-bold tabular-nums"
+                style={{ color: colors.blue.hex }}
+              >
+                {scores.blue}
+              </div>
+              <div className="text-[11px] tracking-wider text-mist-dim uppercase">
+                {playerLabel('blue', mode)}
+              </div>
             </div>
             <div>
               <div className="text-xl font-bold text-mist tabular-nums">{scores.draws}</div>

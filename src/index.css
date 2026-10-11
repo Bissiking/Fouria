@@ -96,6 +96,16 @@
   inset: 7%;
   border-radius: 9999px;
   will-change: transform;
+  background: radial-gradient(
+    circle at 32% 26%,
+    var(--disc-hi) 0%,
+    var(--disc-base) 54%,
+    var(--disc-lo) 100%
+  );
+  box-shadow:
+    inset 0 -8px 14px rgba(0, 0, 0, 0.5),
+    inset 0 6px 11px rgba(255, 255, 255, 0.28),
+    0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .disc::after {
@@ -109,22 +119,6 @@
   background: rgba(255, 255, 255, 0.5);
   filter: blur(3px);
   transform: rotate(-24deg);
-}
-
-.disc-red {
-  background: radial-gradient(circle at 32% 26%, #ffd2cd 0%, #ff8078 30%, #f04a40 62%, #8f1810 100%);
-  box-shadow:
-    inset 0 -8px 14px rgba(0, 0, 0, 0.5),
-    inset 0 6px 11px rgba(255, 255, 255, 0.34),
-    0 8px 16px rgba(0, 0, 0, 0.5);
-}
-
-.disc-blue {
-  background: radial-gradient(circle at 32% 26%, #d7e9ff 0%, #74adff 30%, #2f7bff 62%, #10308f 100%);
-  box-shadow:
-    inset 0 -8px 14px rgba(0, 0, 0, 0.5),
-    inset 0 6px 11px rgba(255, 255, 255, 0.34),
-    0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
 .disc-ghost {
@@ -244,6 +238,28 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
     0 20px 44px rgba(0, 0, 0, 0.45);
+}
+
+/* ------------------------------------------------------------------ */
+/* Player colour swatches                                              */
+/* ------------------------------------------------------------------ */
+
+.swatch-struck {
+  position: relative;
+}
+
+.swatch-struck::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    transparent 44%,
+    rgba(8, 11, 18, 0.82) 46%,
+    rgba(8, 11, 18, 0.82) 54%,
+    transparent 56%
+  );
 }
 
 /* ------------------------------------------------------------------ */

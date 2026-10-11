@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { GameMode, Player } from '../engine/types'
+import type { ResolvedPlayerColors } from '../colors'
 import { MODE_LABELS, playerLabel } from '../types'
 import { IconPlay, IconTrophy } from './icons'
 
@@ -7,11 +8,12 @@ interface EndOverlayProps {
   winner: Player | 'draw'
   mode: GameMode
   scores: { red: number; blue: number; draws: number }
+  colors: ResolvedPlayerColors
   onReplay: () => void
   onMenu: () => void
 }
 
-const CONFETTI_COLORS = ['#ff5f56', '#2f7bff', '#6ea8ff', '#ff9a92', '#ffd166', '#f4f8ff']
+const CONFETTI_BASE = ['#FFC857', '#F4F8FF']
 
 interface Piece {
   id: number
@@ -25,7 +27,7 @@ interface Piece {
   radius: string
 }
 
-function buildConfetti(seed: number): Piece[] {
+function buildConfetti(seed: number, palette: string[]): Piece[] {
   return Array.from({ length: 42 }, (_, index) => ({
     id: seed * 100 + index,
     left: (index * 17 + seed * 7) % 100,
@@ -33,21 +35,33 @@ function buildConfetti(seed: number): Piece[] {
     spin: 360 + ((index * 97) % 720),
     duration: 2.6 + ((index * 13) % 20) / 10,
     delay: ((index * 29) % 22) / 10,
-    color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+    color: palette[index % palette.length],
     size: 7 + ((index * 11) % 9),
     radius: index % 3 === 0 ? '2px' : '999px',
   }))
 }
 
-export function EndOverlay({ winner, mode, scores, onReplay, onMenu }: EndOverlayProps) {
+export function EndOverlay({
+  winner,
+  mode,
+  scores,
+  colors,
+  onReplay,
+  onMenu,
+}: EndOverlayProps) {
   const isDraw = winner === 'draw'
   const label = isDraw ? 'Match nul' : playerLabel(winner, mode)
-  const confetti = useMemo(() => buildConfetti(isDraw ? 2 : winner === 'red' ? 1 : 3), [winner, isDraw])
-  const accent = isDraw
-    ? 'text-mist'
-    : winner === 'red'
-      ? 'text-coral-2'
-      : 'text-electric-2'
+  const accent = isDraw ? '#94A3B8' : winner === 'red' ? colors.red.hex : colors.blue.hex
+  const otherHex = winner === 'blue' ? colors.red.hex : colors.blue.hex
+  const confetti = useMemo(
+    () =>
+      buildConfetti(isDraw ? 2 : winner === 'red' ? 1 : 3, [
+        accent,
+        otherHex,
+        ...CONFETTI_BASE,
+      ]),
+    [winner, isDraw, accent, otherHex],
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 px-4 backdrop-blur-md">
@@ -76,16 +90,19 @@ export function EndOverlay({ winner, mode, scores, onReplay, onMenu }: EndOverla
       <div className="anim-rise panel relative w-full max-w-md rounded-[28px] p-7 text-center sm:p-9">
         <div
           className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
-            isDraw ? 'bg-white/[0.06]' : winner === 'red' ? 'bg-coral/15' : 'bg-electric/15'
+            isDraw ? 'bg-white/[0.06]' : ''
           }`}
+          style={isDraw ? undefined : { background: `${accent}26` }}
         >
-          <IconTrophy className={`h-8 w-8 ${accent}`} />
+          <span style={{ color: accent }}>
+            <IconTrophy className="h-8 w-8" />
+          </span>
         </div>
 
         <p className="text-xs font-semibold tracking-[0.3em] text-mist-dim uppercase">
           {isDraw ? 'Partie terminée' : 'Victoire'}
         </p>
-        <h2 className={`mt-2 text-3xl font-extrabold sm:text-4xl ${accent}`}>
+        <h2 className="mt-2 text-3xl font-extrabold sm:text-4xl" style={{ color: accent }}>
           {isDraw ? 'Égalité !' : `${label} l’emporte !`}
         </h2>
         <p className="mt-3 text-sm text-mist-dim">
