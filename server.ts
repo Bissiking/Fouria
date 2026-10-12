@@ -1,3 +1,7 @@
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { readFile, stat } from 'node:fs/promises'
+import { join, normalize, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { WebSocketServer, WebSocket } from 'ws'
 import { createGame, playMove, type GameState } from './src/engine/game'
 import type { Position, Player } from './src/engine/types'
@@ -155,9 +159,141 @@ function handleLeave(playerId: string): void {
   }
 }
 
-const wss = new WebSocketServer({ port: 3001 })
+const PORT = Number(process.env.PORT) || 3000
+const HOST = '0.0.0.0'
+const DIST_DIR = fileURLToPath(new URL('./dist', import.meta.url))
 
-console.log('WebSocket server running on ws://localhost:3001')
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.map': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+}
+
+function resolveStaticFile(pathname: string): string | null {
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch {
+    return null
+  }
+  const full = normalize(join(DIST_DIR, decoded))
+  if (full !== DIST_DIR && !full.startsWith(DIST_DIR + sep)) return null
+  return full
+}
+
+async function sendFile(
+  req: IncomingMessage,
+  res: ServerResponse,
+  filePath: string,
+  cacheControl: string,
+): Promise<void> {
+  const data = await readFile(filePath)
+  res.writeHead(200, {
+    'Content-Type': MIME_TYPES[filePath.slice(filePath.lastIndexOf('.'))] ?? 'application/octet-stream',
+    'Content-Length': data.length,
+    'Cache-Control': cacheControl,
+  })
+  res.end(req.method === 'HEAD' ? undefined : data)
+}
+
+async function handleHttpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+  const { pathname } = url
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' })
+    res.end('Method Not Allowed')
+    return
+  }
+
+  // The WebSocket endpoint is reserved: never fall back to index.html for it.
+  if (pathname === '/ws') {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    res.end('WebSocket endpoint: upgrade required')
+    return
+  }
+
+  try {
+    const filePath = resolveStaticFile(pathname === '/' ? '/index.html' : pathname)
+    if (filePath) {
+      const info = await stat(filePath).catch(() => null)
+      const isFile = info?.isFile()
+      const file = isFile
+        ? filePath
+        : pathname !== '/'
+          ? null
+          : join(DIST_DIR, 'index.html')
+      if (file) {
+        const isHashedAsset = file.startsWith(join(DIST_DIR, 'assets') + sep)
+        await sendFile(
+          req,
+          res,
+          file,
+          isHashedAsset ? 'public, max-age=31536000, immutable' : 'no-cache',
+        )
+        return
+      }
+    }
+
+    // SPA fallback: unknown non-asset routes serve the app shell.
+    if (pathname.startsWith('/assets/')) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+      res.end('Not Found')
+      return
+    }
+    await sendFile(req, res, join(DIST_DIR, 'index.html'), 'no-cache')
+  } catch {
+    res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' })
+    res.end('Frontend not built: run "npm run build" first.')
+  }
+}
+
+const server = createServer((req, res) => {
+  handleHttpRequest(req, res).catch(() => {
+    if (!res.headersSent) res.writeHead(500)
+    res.end('Internal Server Error')
+  })
+})
+
+const wss = new WebSocketServer({ noServer: true })
+
+server.on('upgrade', (req, socket, head) => {
+  const pathname = new URL(req.url ?? '/', 'http://localhost').pathname
+  if (pathname !== '/ws') {
+    socket.destroy()
+    return
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req)
+  })
+})
+
+server.listen(PORT, HOST, () => {
+  console.log(`Fouria listening on http://${HOST}:${PORT} (static + /ws)`)
+})
+
+function shutdown(): void {
+  wss.clients.forEach((client) => client.close())
+  server.close(() => process.exit(0))
+  setTimeout(() => process.exit(0), 2000).unref()
+}
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
 
 wss.on('connection', (ws: WebSocket) => {
   const playerId = generatePlayerId()

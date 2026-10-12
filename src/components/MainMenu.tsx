@@ -176,7 +176,7 @@ export function MainMenu({
               <span className="block text-sm font-bold tracking-wide text-mist">LUMA Games</span>
             </span>
           </div>
-          <span className="font-mono text-[0.7rem] tracking-wider">Version 1.2.0</span>
+          <span className="font-mono text-[0.7rem] tracking-wider">Version {__APP_VERSION__}</span>
         </footer>
       </main>
     </div>

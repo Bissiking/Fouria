@@ -146,7 +146,7 @@ export function SettingsScreen({
               </span>
             </button>
             <p className="mt-5 text-center text-[0.7rem] tracking-wider text-mist-dim">
-              Fouria — Version 1.2.0 · LUMA Games
+              Fouria — Version {__APP_VERSION__} · LUMA Games
             </p>
           </section>
         </main>

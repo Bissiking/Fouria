@@ -28,7 +28,7 @@ Le même jeu sur le même écran ou à distance : mode local et mode en ligne pa
 
 - Modes : 2 joueurs local, contre l'IA (facile/moyen/difficile), en ligne (code de salle, WebSocket).
 - Scores et historique persistés en localStorage, personnalisation des couleurs des jetons, sons (mutables).
-- Stack : React 19 + TypeScript + Vite + Tailwind 4, serveur WebSocket `ws` (port 3001).
+- Stack : React 19 + TypeScript + Vite + Tailwind 4, serveur Node unique (`server.ts` : statique `dist/` + WebSocket `/ws`, port `3000`).
 - Interface exclusivement en français.
 - Contrainte : la ligne gagnante doit rester visible en fin de partie (pas de popup opaque qui la masque).
 
@@ -36,7 +36,7 @@ Le même jeu sur le même écran ou à distance : mode local et mode en ligne pa
 
 - Nom du jeu : FOURIA.
 - Studio éditeur : LUMA Games (mention affichée dans le menu principal).
-- Version du jeu affichée : Version 1.0.0.
+- Version du jeu affichée : Version 1.2.1 (source unique : `package.json`).
 
 ## Evidence on Hand
 

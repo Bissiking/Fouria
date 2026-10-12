@@ -44,8 +44,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = import.meta.env.VITE_WS_HOST || 'localhost:3001'
-    const ws = new WebSocket(`${protocol}//${host}`)
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`)
 
     ws.onopen = () => {
       setConnected(true)

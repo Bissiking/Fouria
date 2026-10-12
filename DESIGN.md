@@ -49,7 +49,7 @@ Entrées `anim-rise` / `anim-pop` / `anim-drop` en ease-out lisse (`cubic-bezier
 
 - **Grille hairline en fond** (`codex-grid-background`, advisory) : conservée — faisant partie du monde arcade (borne d'arcade / CRT), en très faible opacité. Décision consciente, pas de l'oubli.
 - **Pas d'image générée** : direction 100 % code-led (pas de gen sur la machine).
-- **Multijoueur** : WebSocket maison (`server.ts`, `ws://localhost:3001`), salon 6 caractères, pas de compte.
+- **Multijoueur** : WebSocket maison (`server.ts`, `ws://…/ws` sur le même serveur HTTP que le frontend, port `3000`), salon 6 caractères, pas de compte.
 
 ## Provenance
 
