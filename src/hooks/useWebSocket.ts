@@ -10,6 +10,8 @@ interface WebSocketMessage {
     game?: GameState
     column?: number
     message?: string
+    hostId?: string
+    readyPlayer?: Player
   }
 }
 
@@ -17,10 +19,11 @@ interface UseWebSocketOptions {
   onConnected?: (playerId: string) => void
   onRoomCreated?: (roomId: string, player: Player, game: GameState) => void
   onRoomJoined?: (roomId: string, player: Player, game: GameState) => void
+  onRoomReady?: (hostId: string) => void
   onGameStart?: (game: GameState) => void
   onMove?: (column: number, game: GameState) => void
   onGameEnd?: (game: GameState) => void
-  onRematchPending?: (player: Player) => void
+  onRematchState?: (readyPlayer: Player) => void
   onPlayerLeft?: () => void
   onError?: (message: string) => void
 }
@@ -46,28 +49,26 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     ws.onopen = () => {
       setConnected(true)
-      console.log('WebSocket connected')
     }
 
     ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data)
         handleMessage(message)
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error)
+      } catch {
+        // ignore malformed frames
       }
     }
 
     ws.onclose = () => {
       setConnected(false)
-      console.log('WebSocket disconnected')
       reconnectTimeoutRef.current = window.setTimeout(() => {
         connect()
       }, 3000)
     }
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
+    ws.onerror = () => {
+      // the close handler drives reconnection
     }
 
     wsRef.current = ws
@@ -88,7 +89,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         opts.onRoomCreated?.(
           message.payload?.roomId ?? '',
           message.payload?.player ?? 'red',
-          message.payload?.game!
+          message.payload?.game!,
         )
         break
 
@@ -98,8 +99,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         opts.onRoomJoined?.(
           message.payload?.roomId ?? '',
           message.payload?.player ?? 'blue',
-          message.payload?.game!
+          message.payload?.game!,
         )
+        break
+
+      case 'room_ready':
+        opts.onRoomReady?.(message.payload?.hostId ?? '')
         break
 
       case 'game_start':
@@ -114,8 +119,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         opts.onGameEnd?.(message.payload?.game!)
         break
 
-      case 'rematch_pending':
-        opts.onRematchPending?.(message.payload?.player ?? 'red')
+      case 'rematch_state':
+        opts.onRematchState?.(message.payload?.readyPlayer ?? 'red')
         break
 
       case 'player_left':
@@ -123,7 +128,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         break
 
       case 'error':
-        opts.onError?.(message.payload?.message ?? 'Unknown error')
+        opts.onError?.(message.payload?.message ?? 'Erreur inconnue')
         break
     }
   }, [])
@@ -138,6 +143,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   const sendMove = useCallback((column: number) => {
     wsRef.current?.send(JSON.stringify({ type: 'move', payload: { column } }))
+  }, [])
+
+  const sendStart = useCallback(() => {
+    wsRef.current?.send(JSON.stringify({ type: 'start' }))
   }, [])
 
   const sendRematch = useCallback(() => {
@@ -174,6 +183,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     createRoom,
     joinRoom,
     sendMove,
+    sendStart,
     sendRematch,
     disconnect,
   }

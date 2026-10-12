@@ -56,7 +56,7 @@ function handleCreateRoom(ws: WebSocket, playerId: string): void {
     hostId: playerId,
   }
 
-  room.players.set(playerId, { ws, player: 'red', ready: true })
+  room.players.set(playerId, { ws, player: 'red', ready: false })
   rooms.set(roomId, room)
   playerToRoom.set(playerId, roomId)
 
@@ -77,16 +77,26 @@ function handleJoinRoom(ws: WebSocket, playerId: string, roomId: string): void {
   }
 
   const player: Player = room.players.size === 0 ? 'red' : 'blue'
-  room.players.set(playerId, { ws, player, ready: true })
+  room.players.set(playerId, { ws, player, ready: false })
   playerToRoom.set(playerId, roomId)
 
   send(ws, { type: 'room_joined', payload: { roomId, player, game: room.game } })
 
   if (room.players.size === 2) {
-    broadcast(room, { type: 'game_start', payload: { game: room.game } })
+    broadcast(room, { type: 'room_ready', payload: { hostId: room.hostId } })
   }
 
   console.log(`Player ${playerId} joined room ${roomId} as ${player}`)
+}
+
+function handleStart(room: Room, playerId: string): void {
+  if (playerId !== room.hostId) return
+  if (room.players.size < 2) return
+
+  room.game = createGame()
+  room.players.forEach((p) => (p.ready = false))
+  broadcast(room, { type: 'game_start', payload: { game: room.game } })
+  console.log(`Room ${room.id} started by host`)
 }
 
 function handleMove(room: Room, playerId: string, column: number): void {
@@ -115,12 +125,15 @@ function handleRematch(room: Room, playerId: string): void {
   playerInfo.ready = true
 
   const allReady = Array.from(room.players.values()).every((p) => p.ready)
-  if (allReady) {
+  if (allReady && room.players.size === 2) {
     room.game = createGame()
     room.players.forEach((p) => (p.ready = false))
     broadcast(room, { type: 'game_start', payload: { game: room.game } })
   } else {
-    broadcast(room, { type: 'rematch_pending', payload: { player: playerInfo.player } }, playerId)
+    broadcast(room, {
+      type: 'rematch_state',
+      payload: { readyPlayer: playerInfo.player },
+    })
   }
 }
 
@@ -169,6 +182,15 @@ wss.on('connection', (ws: WebSocket) => {
             if (roomId) {
               const room = rooms.get(roomId)
               if (room) handleMove(room, playerId, (message.payload as { column: number }).column)
+            }
+          }
+          break
+        case 'start':
+          {
+            const roomId = playerToRoom.get(playerId)
+            if (roomId) {
+              const room = rooms.get(roomId)
+              if (room) handleStart(room, playerId)
             }
           }
           break

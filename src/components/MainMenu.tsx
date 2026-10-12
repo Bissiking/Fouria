@@ -1,71 +1,77 @@
-import type { Difficulty, GameMode, Player } from '../engine/types'
-import type { ColorId, ResolvedPlayerColors } from '../colors'
 import {
-  DIFFICULTY_HINTS,
-  DIFFICULTY_LABELS,
-  MODE_LABELS,
-  playerLabel,
-  type Scores,
-} from '../types'
-import { IconCpu, IconPlay, IconUsers, IconVolume, IconWifi } from './icons'
-import { PlayerColorSettings } from './PlayerColorSettings'
+  IconCpu,
+  IconLuma,
+  IconPalette,
+  IconPlay,
+  IconSettings,
+  IconWifi,
+} from './icons'
 
 interface MainMenuProps {
-  mode: GameMode
-  difficulty: Difficulty
-  scores: Scores
-  muted: boolean
-  colors: ResolvedPlayerColors
-  onSelectMode: (mode: GameMode) => void
-  onSelectDifficulty: (difficulty: Difficulty) => void
-  onSelectPlayerColor: (player: Player, colorId: ColorId) => void
-  onResetPlayerColors: () => void
-  onStart: () => void
-  onCreateRoom: () => void
-  onJoinRoom: (code: string) => void
-  onToggleMute: () => void
+  onPlayLocal: () => void
+  onOnline: () => void
+  onAi: () => void
+  onCustomize: () => void
+  onSettings: () => void
 }
 
-const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
+const DISC_BLUE = { hi: '#B8D4FF', base: '#367BFF', lo: '#0B2B7A', glow: 'rgba(47,123,255,0.5)' }
+const DISC_GOLD = { hi: '#FFF3CE', base: '#FFC857', lo: '#7A4E08', glow: 'rgba(255,200,87,0.45)' }
+
+function discVars(disc: typeof DISC_BLUE, tilt: number, bob: number): React.CSSProperties {
+  return {
+    '--disc-hi': disc.hi,
+    '--disc-base': disc.base,
+    '--disc-lo': disc.lo,
+    '--glow': disc.glow,
+    '--tilt': `${tilt}deg`,
+    '--bob': `${bob}s`,
+  } as React.CSSProperties
+}
 
 export function MainMenu({
-  mode,
-  difficulty,
-  scores,
-  muted,
-  colors,
-  onSelectMode,
-  onSelectDifficulty,
-  onSelectPlayerColor,
-  onResetPlayerColors,
-  onStart,
-  onCreateRoom,
-  onJoinRoom,
-  onToggleMute,
+  onPlayLocal,
+  onOnline,
+  onAi,
+  onCustomize,
+  onSettings,
 }: MainMenuProps) {
-  const modes: Array<{
-    id: GameMode
-    title: string
-    description: string
-    icon: React.ReactNode
-  }> = [
+  const actions = [
     {
-      id: 'pvp',
-      title: MODE_LABELS.pvp,
-      description: 'Deux joueurs sur le même écran, à tour de rôle.',
-      icon: <IconUsers className="h-5 w-5" />,
-    },
-    {
-      id: 'ai',
-      title: MODE_LABELS.ai,
-      description: 'Affrontez la machine, du débutant à l’expert.',
-      icon: <IconCpu className="h-5 w-5" />,
+      id: 'play',
+      label: 'Jouer',
+      description: 'Deux joueurs, le même écran',
+      icon: <IconPlay className="h-5 w-5" />,
+      onClick: onPlayLocal,
+      variant: 'primary' as const,
     },
     {
       id: 'online',
-      title: MODE_LABELS.online,
-      description: 'Jouez avec un ami à distance via un code de salle.',
+      label: 'Multijoueur en ligne',
+      description: 'Un code de salle, un ami à distance',
       icon: <IconWifi className="h-5 w-5" />,
+      onClick: onOnline,
+    },
+    {
+      id: 'ai',
+      label: 'Jouer contre l\u2019IA',
+      description: 'Du débutant à l\u2019expert',
+      icon: <IconCpu className="h-5 w-5" />,
+      onClick: onAi,
+    },
+    {
+      id: 'customize',
+      label: 'Personnalisation',
+      description: 'Choisissez vos jetons',
+      icon: <IconPalette className="h-5 w-5" />,
+      onClick: onCustomize,
+    },
+    {
+      id: 'settings',
+      label: 'Paramètres',
+      description: 'Sons et scores',
+      icon: <IconSettings className="h-5 w-5" />,
+      onClick: onSettings,
     },
   ]
 
@@ -73,176 +79,105 @@ export function MainMenu({
     <div className="arcade-bg relative min-h-dvh overflow-hidden">
       <div className="arcade-grid pointer-events-none absolute inset-0" />
 
-      <main className="relative mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-7 px-5 py-10">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <span
+          className="bokeh"
+          style={{ width: 240, height: 240, left: '6%', top: '12%', background: 'rgba(47,123,255,0.5)' }}
+        />
+        <span
+          className="bokeh"
+          style={{ width: 170, height: 170, right: '8%', top: '20%', background: 'rgba(255,200,87,0.4)' }}
+        />
+        <span
+          className="bokeh"
+          style={{ width: 300, height: 300, right: '18%', bottom: '6%', background: 'rgba(47,123,255,0.35)' }}
+        />
+        <span
+          className="bokeh"
+          style={{ width: 150, height: 150, left: '14%', bottom: '14%', background: 'rgba(255,200,87,0.3)' }}
+        />
+
+        <span
+          className="float-disc anim-bob hidden sm:block"
+          style={{ width: 130, height: 130, left: '5%', top: '30%', ...discVars(DISC_BLUE, -14, 7) }}
+        />
+        <span
+          className="float-disc anim-bob hidden sm:block"
+          style={{ width: 170, height: 170, right: '4%', top: '48%', ...discVars(DISC_GOLD, 10, 8.5) }}
+        />
+        <span
+          className="float-disc anim-bob hidden lg:block"
+          style={{ width: 92, height: 92, right: '22%', top: '10%', ...discVars(DISC_BLUE, 18, 6) }}
+        />
+        <span
+          className="float-disc anim-bob hidden lg:block"
+          style={{ width: 110, height: 110, left: '16%', bottom: '10%', ...discVars(DISC_GOLD, -8, 9) }}
+        />
+        <span
+          className="float-disc anim-bob sm:hidden"
+          style={{ width: 90, height: 90, left: '-3%', top: '18%', ...discVars(DISC_BLUE, -14, 7) }}
+        />
+        <span
+          className="float-disc anim-bob sm:hidden"
+          style={{ width: 110, height: 110, right: '-5%', bottom: '18%', ...discVars(DISC_GOLD, 10, 8.5) }}
+        />
+      </div>
+
+      <main className="relative mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-8 px-5 py-12">
         <header className="text-center">
-          <p className="text-xs font-semibold tracking-[0.45em] text-electric-2 uppercase">
-            Fouria
-          </p>
-          <h1 className="anim-title mt-3 text-5xl font-black tracking-tight text-white sm:text-6xl">
-            PUISSANCE <span className="text-coral-2">4</span>
+          <h1 className="anim-title logo-chrome text-[clamp(2.6rem,11vw,5.2rem)] leading-none tracking-[0.08em]">
+            FOURIA
           </h1>
-          <p className="mt-3 text-sm text-mist-dim">
-            Alignez quatre jetons avant votre adversaire. Arcade, local, sans compte.
+          <p className="micro-label mt-4 text-mist-dim">
+            Stratégie <span className="text-blue-hi">·</span> Réflexion{' '}
+            <span className="text-gold">·</span> Duel
           </p>
         </header>
 
-        <section className="panel rounded-3xl p-5">
-          <h2 className="text-xs font-semibold tracking-[0.2em] text-mist-dim uppercase">
-            Mode de jeu
-          </h2>
-          <div className="mt-4 grid gap-3">
-            {modes.map((option) => {
-              const active = option.id === mode
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => onSelectMode(option.id)}
-                  data-active={active}
-                  className={`flex items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 ${
-                    active
-                      ? 'bg-electric/12 shadow-[inset_0_0_0_1.5px_var(--color-electric)]'
-                      : 'bg-white/[0.04] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] hover:bg-white/[0.07]'
+        <nav className="flex flex-col gap-3" aria-label="Menu principal">
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="menu-btn anim-rise"
+              data-variant={action.variant}
+              style={{ animationDelay: `${actions.indexOf(action) * 70}ms` }}
+              onClick={action.onClick}
+            >
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  action.variant === 'primary'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white/[0.06] text-blue-hi'
+                }`}
+                aria-hidden="true"
+              >
+                {action.icon}
+              </span>
+              <span className="min-w-0">
+                <span className="block">{action.label}</span>
+                <span
+                  className={`block text-[0.78rem] font-normal ${
+                    action.variant === 'primary' ? 'text-white/75' : 'text-mist-dim'
                   }`}
                 >
-                  <span
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                      active ? 'bg-electric text-white' : 'bg-white/[0.06] text-electric-2'
-                    }`}
-                  >
-                    {option.icon}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold text-white">{option.title}</span>
-                    <span className="block text-sm text-mist-dim">{option.description}</span>
-                  </span>
-                </button>
-              )
-            })}
+                  {action.description}
+                </span>
+              </span>
+            </button>
+          ))}
+        </nav>
+
+        <footer className="flex items-end justify-between gap-4 text-mist-dim">
+          <div className="flex items-center gap-2.5">
+            <IconLuma className="h-7 w-7 text-mist" />
+            <span className="text-left">
+              <span className="micro-label block">Un jeu</span>
+              <span className="block text-sm font-bold tracking-wide text-mist">LUMA Games</span>
+            </span>
           </div>
-
-{mode === 'ai' && (
-            <div className="mt-5">
-              <h2 className="text-xs font-semibold tracking-[0.2em] text-mist-dim uppercase">
-                Niveau de l'IA
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {DIFFICULTIES.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    className="chip"
-                    data-active={level === difficulty}
-                    data-tone="coral"
-                    onClick={() => onSelectDifficulty(level)}
-                  >
-                    {DIFFICULTY_LABELS[level]}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-sm text-mist-dim">{DIFFICULTY_HINTS[difficulty]}</p>
-            </div>
-          )}
-
-          {mode === 'online' && (
-            <div className="mt-5 space-y-4">
-              <h2 className="text-xs font-semibold tracking-[0.2em] text-mist-dim uppercase">
-                Jouer en ligne
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  className="btn btn-primary py-4"
-                  onClick={onCreateRoom}
-                >
-                  <IconWifi className="h-5 w-5" />
-                  Créer une salle
-                </button>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    placeholder="Code de la salle"
-                    className="input font-mono text-center tracking-widest uppercase text-lg"
-                    maxLength={6}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        onJoinRoom(e.currentTarget.value.toUpperCase())
-                      }
-                    }}
-                    onChange={(e) => e.currentTarget.value.toUpperCase()}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      const input = document.querySelector('input[placeholder="Code de la salle"]') as HTMLInputElement
-                      if (input?.value) onJoinRoom(input.value.toUpperCase())
-                    }}
-                  >
-                    Rejoindre
-                  </button>
-                </div>
-              </div>
-              <p className="text-sm text-mist-dim text-center">
-                Partagez le code à 6 caractères avec un ami pour jouer ensemble
-              </p>
-            </div>
-          )}
-        </section>
-
-        <PlayerColorSettings
-          mode={mode}
-          colors={colors}
-          onSelect={onSelectPlayerColor}
-          onReset={onResetPlayerColors}
-        />
-
-        <section className="flex items-center justify-between gap-4 rounded-3xl bg-white/[0.03] px-5 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]">
-          <div className="flex gap-5 text-center">
-            <div>
-              <div
-                className="text-xl font-bold tabular-nums"
-                style={{ color: colors.red.hex }}
-              >
-                {scores.red}
-              </div>
-              <div className="text-[11px] tracking-wider text-mist-dim uppercase">
-                {playerLabel('red', mode)}
-              </div>
-            </div>
-            <div>
-              <div
-                className="text-xl font-bold tabular-nums"
-                style={{ color: colors.blue.hex }}
-              >
-                {scores.blue}
-              </div>
-              <div className="text-[11px] tracking-wider text-mist-dim uppercase">
-                {playerLabel('blue', mode)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-mist tabular-nums">{scores.draws}</div>
-              <div className="text-[11px] tracking-wider text-mist-dim uppercase">Nuls</div>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost px-3.5"
-            onClick={onToggleMute}
-            aria-pressed={!muted}
-            aria-label={muted ? 'Activer les sons' : 'Couper les sons'}
-          >
-            <IconVolume on={!muted} className="h-5 w-5" />
-          </button>
-        </section>
-
-        {mode !== 'online' && (
-          <button type="button" className="btn btn-primary w-full py-4 text-lg" onClick={onStart}>
-            <IconPlay />
-            Lancer la partie
-          </button>
-        )}
+          <span className="font-mono text-[0.7rem] tracking-wider">Version 1.2.0</span>
+        </footer>
       </main>
     </div>
   )

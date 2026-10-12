@@ -22,10 +22,10 @@ describe('player colour palette', () => {
     expect(new Set(PLAYER_COLORS.map((color) => color.hex.toLowerCase())).size).toBe(8)
   })
 
-  it('defaults to coral red / electric blue', () => {
-    expect(DEFAULT_PLAYER_COLORS).toEqual({ red: 'corail', blue: 'electrique' })
-    expect(getColor('corail').hex).toBe('#FF6268')
+  it('defaults to electric blue / amber gold', () => {
+    expect(DEFAULT_PLAYER_COLORS).toEqual({ red: 'electrique', blue: 'ambre' })
     expect(getColor('electrique').hex).toBe('#367BFF')
+    expect(getColor('ambre').hex).toBe('#FFC857')
   })
 
   it('keeps every colour readable against the board well', () => {
@@ -50,10 +50,10 @@ describe('preference resolution', () => {
   })
 
   it('falls back to defaults on missing or corrupt values', () => {
-    expect(resolvePlayerColors(undefined).red.id).toBe('corail')
-    expect(resolvePlayerColors(undefined).blue.id).toBe('electrique')
+    expect(resolvePlayerColors(undefined).red.id).toBe('electrique')
+    expect(resolvePlayerColors(undefined).blue.id).toBe('ambre')
     expect(resolvePlayerColors({ red: 'nope' as never, blue: 'nope' as never }).blue.id).toBe(
-      'electrique',
+      'ambre',
     )
   })
 
@@ -62,7 +62,7 @@ describe('preference resolution', () => {
     expect(resolved.red.id).not.toBe(resolved.blue.id)
     const swapped = resolvePlayerColors({ red: 'electrique', blue: 'electrique' })
     expect(swapped.red.id).toBe('electrique')
-    expect(swapped.blue.id).toBe('corail')
+    expect(swapped.blue.id).toBe('ambre')
   })
 })
 
@@ -76,6 +76,7 @@ describe('pair validation', () => {
   })
 
   it('accepts the default pair and other distant pairs', () => {
+    expect(colorConflict('electrique', 'ambre')).toBeNull()
     expect(colorConflict('corail', 'electrique')).toBeNull()
     expect(colorConflict('violet', 'cyan')).toBeNull()
     expect(colorConflict('jade', 'magenta')).toBeNull()

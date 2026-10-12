@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Board } from './components/Board'
+import { GameSidebar } from './components/GameSidebar'
 import { MainMenu } from './components/MainMenu'
-import { ScorePanel } from './components/ScorePanel'
-import { IconBack, IconVolume, IconTrophy, IconPlay, IconCopy, IconWifi, IconWifiOff } from './components/icons'
+import { OnlineScreen } from './components/OnlineScreen'
+import { AiSetupScreen } from './components/AiSetupScreen'
+import { SettingsScreen } from './components/SettingsScreen'
+import { PlayerColorSettings } from './components/PlayerColorSettings'
+import { RulesOverlay } from './components/RulesOverlay'
+import { IconBack, IconVolume } from './components/icons'
 import {
   DEFAULT_PLAYER_COLORS,
   resolvePlayerColors,
@@ -15,14 +20,7 @@ import type { Difficulty, GameMode, GameState, Player } from './engine/types'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { playSound, useSound } from './hooks/useSound'
 import { useWebSocket } from './hooks/useWebSocket'
-import {
-  DIFFICULTY_LABELS,
-  EMPTY_SCORES,
-  MODE_LABELS,
-  playerLabel,
-  type GameResult,
-  type Scores,
-} from './types'
+import { MODE_LABELS, EMPTY_SCORES, type GameResult, type Scores } from './types'
 
 const AI_PLAYER: Player = 'blue'
 
@@ -37,13 +35,20 @@ interface Preferences {
   difficulty: Difficulty
 }
 
+type Screen = 'menu' | 'ai-setup' | 'online' | 'customize' | 'settings' | 'game'
+
 export default function App() {
-  const [screen, setScreen] = useState<'menu' | 'game' | 'online-lobby'>('menu')
+  const [screen, setScreen] = useState<Screen>('menu')
   const [game, setGame] = useState<GameState>(createGame)
+  const [gameMode, setGameMode] = useState<GameMode>('pvp')
   const [aiThinking, setAiThinking] = useState(false)
+  const [rulesOpen, setRulesOpen] = useState(false)
+
+  const [inLobby, setInLobby] = useState(false)
+  const [roomCode, setRoomCode] = useState('')
+  const [opponentPresent, setOpponentPresent] = useState(false)
   const [onlineError, setOnlineError] = useState<string | null>(null)
-  const [opponentReady, setOpponentReady] = useState(false)
-  const [roomCode, setRoomCode] = useState<string>('')
+  const [rematch, setRematch] = useState({ mine: false, theirs: false })
 
   const [preferences, setPreferences] = useLocalStorage<Preferences>(PREFS_KEY, {
     mode: 'pvp',
@@ -58,7 +63,7 @@ export default function App() {
   )
 
   const sound = useSound(muted)
-  const { mode, difficulty } = preferences
+  const { difficulty } = preferences
   const colors = useMemo(() => resolvePlayerColors(playerColors), [playerColors])
 
   const recordResult = useCallback(
@@ -76,15 +81,15 @@ export default function App() {
           {
             id: Date.now() + Math.floor(Math.random() * 1000),
             winner,
-            mode,
-            difficulty: mode === 'ai' ? difficulty : undefined,
+            mode: gameMode,
+            difficulty: gameMode === 'ai' ? difficulty : undefined,
             at: Date.now(),
           },
           ...previous,
         ].slice(0, 12),
       )
     },
-    [mode, difficulty, setScores, setHistory],
+    [gameMode, difficulty, setScores, setHistory],
   )
 
   const playColumn = useCallback(
@@ -109,9 +114,7 @@ export default function App() {
     playColumnRef.current = playColumn
   }, [playColumn])
 
-  const isAiTurn = mode === 'ai' && game.currentPlayer === AI_PLAYER
-  const isOnlineMode = mode === 'online'
-  const isMyTurn = isOnlineMode ? game.currentPlayer === 'red' : true
+  const isAiTurn = gameMode === 'ai' && game.currentPlayer === AI_PLAYER
 
   useEffect(() => {
     if (screen !== 'game' || game.status !== 'playing' || !isAiTurn) return
@@ -132,66 +135,127 @@ export default function App() {
     }
   }, [screen, game, isAiTurn, difficulty])
 
+  const {
+    connected,
+    player: wsPlayer,
+    playerId,
+    createRoom,
+    joinRoom,
+    sendMove,
+    sendStart,
+    sendRematch,
+    disconnect,
+  } = useWebSocket({
+    onRoomCreated: (id, _player, gameState) => {
+      setRoomCode(id)
+      setInLobby(true)
+      setOpponentPresent(false)
+      setOnlineError(null)
+      setGame(gameState)
+    },
+    onRoomJoined: (id, _player, gameState) => {
+      setRoomCode(id)
+      setInLobby(true)
+      setOnlineError(null)
+      setGame(gameState)
+    },
+    onRoomReady: () => {
+      setOpponentPresent(true)
+    },
+    onGameStart: (gameState) => {
+      setGame(gameState)
+      setRematch({ mine: false, theirs: false })
+      setScreen('game')
+      sound('click')
+    },
+    onMove: (_column, gameState) => {
+      setGame(gameState)
+      sound('drop')
+    },
+    onGameEnd: (gameState) => {
+      setGame(gameState)
+      sound(gameState.status === 'won' ? 'win' : 'draw')
+      recordResult(gameState)
+    },
+    onRematchState: (readyPlayer) => {
+      setRematch((previous) =>
+        readyPlayer === wsPlayer
+          ? { ...previous, mine: true }
+          : { ...previous, theirs: true },
+      )
+    },
+    onPlayerLeft: () => {
+      setOpponentPresent(false)
+      setOnlineError('Votre adversaire a quitté la salle')
+      setRematch({ mine: false, theirs: false })
+    },
+    onError: (message) => {
+      setOnlineError(message)
+    },
+  })
+
+  const isOnline = gameMode === 'online'
+  const isHost = wsPlayer === 'red' && playerId !== null
+  const myTurn = !isOnline || game.currentPlayer === wsPlayer
+
   const boardLocked =
-    game.status !== 'playing' ||
-    isAiTurn ||
-    aiThinking ||
-    (isOnlineMode && !isMyTurn)
+    game.status !== 'playing' || isAiTurn || aiThinking || (isOnline && !myTurn)
 
   const handleColumnClick = useCallback(
     (column: number) => {
       if (boardLocked) return
-      if (isOnlineMode) {
+      if (isOnline) {
         sendMove(column)
       } else {
         playColumn(column)
       }
     },
-    [boardLocked, playColumn, isOnlineMode],
+    [boardLocked, isOnline, sendMove, playColumn],
   )
 
-  const startGame = useCallback(() => {
-    setGame(createGame())
-    setScreen('game')
-    setAiThinking(false)
-    sound('click')
-  }, [sound])
-
-  const replay = useCallback(() => {
-    if (isOnlineMode) {
-      sendRematch()
-    } else {
+  const startLocalGame = useCallback(
+    (mode: GameMode) => {
+      setGameMode(mode)
       setGame(createGame())
       setAiThinking(false)
+      setScreen('game')
       sound('click')
-    }
-  }, [sound, isOnlineMode])
+    },
+    [sound],
+  )
 
   const goToMenu = useCallback(() => {
-    if (isOnlineMode) {
+    if (gameMode === 'online') {
       disconnect()
+      setInLobby(false)
+      setRoomCode('')
+      setOpponentPresent(false)
+      setRematch({ mine: false, theirs: false })
+      setOnlineError(null)
+    }
+    setGameMode('pvp')
+    setGame(createGame())
+    setAiThinking(false)
+    setRulesOpen(false)
+    setScreen('menu')
+    sound('click')
+  }, [gameMode, disconnect, sound])
+
+  const replay = useCallback(() => {
+    if (gameMode === 'online') {
+      sendRematch()
+      return
     }
     setGame(createGame())
-    setScreen('menu')
     setAiThinking(false)
-    setOnlineError(null)
-    setOpponentReady(false)
-    setRoomCode('')
     sound('click')
-  }, [sound, isOnlineMode])
+  }, [gameMode, sendRematch, sound])
 
   const resetScores = useCallback(() => {
     setScores(EMPTY_SCORES)
     setHistory([])
     sound('click')
   }, [setScores, setHistory, sound])
-
-  const updatePreferences = useCallback(
-    (patch: Partial<Preferences>) => {
-      setPreferences((previous) => ({ ...previous, ...patch }))
-    },
-    [setPreferences],
-  )
 
   const toggleMute = useCallback(() => {
     if (muted) playSound('click')
@@ -216,171 +280,130 @@ export default function App() {
     sound('click')
   }, [setPlayerColors, sound])
 
-  const {
-    connected,
-    player: wsPlayer,
-    createRoom,
-    joinRoom,
-    sendMove,
-    sendRematch,
-    disconnect,
-  } = useWebSocket({
-    onConnected: () => {},
-    onRoomCreated: (id, _player, gameState) => {
-      setRoomCode(id)
-      setScreen('online-lobby')
-      setGame(gameState)
-      setOpponentReady(false)
-    },
-    onRoomJoined: (id, _player, gameState) => {
-      setRoomCode(id)
-      setScreen('game')
-      setGame(gameState)
-      setOpponentReady(true)
-    },
-    onGameStart: (gameState) => {
-      setScreen('game')
-      setGame(gameState)
-      setOpponentReady(true)
-    },
-    onMove: (_column, gameState) => {
-      setGame(gameState)
-    },
-    onGameEnd: (gameState) => {
-      setGame(gameState)
-      sound(gameState.status === 'won' ? 'win' : 'draw')
-      recordResult(gameState)
-    },
-    onRematchPending: () => {
-      setOpponentReady(true)
-    },
-    onPlayerLeft: () => {
-      setOpponentReady(false)
-      setOnlineError('Votre adversaire a quitté la partie')
-    },
-    onError: (message) => {
-      setOnlineError(message)
-    },
-  })
-
   const handleCreateRoom = useCallback(() => {
     setOnlineError(null)
     createRoom()
   }, [createRoom])
 
-  const handleJoinRoom = useCallback(() => {
-    if (!roomCode.trim()) return
-    setOnlineError(null)
-    joinRoom(roomCode.trim().toUpperCase())
-  }, [joinRoom, roomCode])
+  const handleJoinRoom = useCallback(
+    (code: string) => {
+      if (!code.trim()) return
+      setOnlineError(null)
+      joinRoom(code.trim().toUpperCase())
+    },
+    [joinRoom],
+  )
 
   const copyRoomCode = useCallback(() => {
     navigator.clipboard.writeText(roomCode)
     sound('click')
   }, [roomCode, sound])
 
+  if (rulesOpen) {
+    return <RulesOverlay onBack={() => setRulesOpen(false)} />
+  }
+
   if (screen === 'menu') {
     return (
       <MainMenu
-        mode={mode}
-        difficulty={difficulty}
-        scores={scores}
-        muted={muted}
-        colors={colors}
-        onSelectMode={(nextMode) => updatePreferences({ mode: nextMode })}
-        onSelectDifficulty={(nextDifficulty) => updatePreferences({ difficulty: nextDifficulty })}
-        onSelectPlayerColor={changePlayerColor}
-        onResetPlayerColors={resetPlayerColors}
-        onStart={startGame}
-        onCreateRoom={handleCreateRoom}
-        onJoinRoom={handleJoinRoom}
-        onToggleMute={toggleMute}
+        onPlayLocal={() => startLocalGame('pvp')}
+        onOnline={() => {
+          setGameMode('online')
+          setScreen('online')
+          sound('click')
+        }}
+        onAi={() => {
+          setScreen('ai-setup')
+          sound('click')
+        }}
+        onCustomize={() => {
+          setScreen('customize')
+          sound('click')
+        }}
+        onSettings={() => {
+          setScreen('settings')
+          sound('click')
+        }}
       />
     )
   }
 
-  if (screen === 'online-lobby') {
+  if (screen === 'ai-setup') {
+    return (
+      <AiSetupScreen
+        difficulty={difficulty}
+        onSelect={(next) => {
+          setPreferences((previous) => ({ ...previous, difficulty: next }))
+          sound('click')
+        }}
+        onStart={() => startLocalGame('ai')}
+        onBack={goToMenu}
+      />
+    )
+  }
+
+  if (screen === 'online') {
+    return (
+      <OnlineScreen
+        connected={connected}
+        inLobby={inLobby}
+        roomCode={roomCode}
+        player={wsPlayer}
+        isHost={isHost}
+        opponentPresent={opponentPresent}
+        colors={colors}
+        error={onlineError}
+        onCreate={handleCreateRoom}
+        onJoin={handleJoinRoom}
+        onCopy={copyRoomCode}
+        onLaunch={() => {
+          sendStart()
+          sound('click')
+        }}
+        onBack={goToMenu}
+      />
+    )
+  }
+
+  if (screen === 'customize') {
     return (
       <div className="arcade-bg relative min-h-dvh">
         <div className="arcade-grid pointer-events-none absolute inset-0" />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <div className="relative mx-auto w-full max-w-2xl px-5 py-8 sm:px-8">
           <header className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              className="btn btn-ghost px-3.5"
-              onClick={goToMenu}
-              aria-label="Retour au menu"
-            >
+            <button type="button" className="btn btn-ghost px-3.5" onClick={goToMenu} aria-label="Retour au menu">
               <IconBack className="h-5 w-5" />
               <span className="hidden text-sm sm:inline">Menu</span>
             </button>
-
-            <div className="text-center">
-              <p className="text-[11px] font-semibold tracking-[0.35em] text-electric-2 uppercase">
-                Fouria
-              </p>
-              <p className="text-xs text-mist-dim">{MODE_LABELS.online}</p>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-ghost px-3.5"
-              onClick={toggleMute}
-              aria-pressed={!muted}
-              aria-label={muted ? 'Activer les sons' : 'Couper les sons'}
-            >
-              <IconVolume on={!muted} className="h-5 w-5" />
-            </button>
+            <p className="text-center">
+              <span className="logo-chrome text-lg tracking-[0.14em]">FOURIA</span>
+              <span className="micro-label mt-1 block">Personnalisation</span>
+            </p>
+            <span className="w-[3.5rem]" aria-hidden="true" />
           </header>
 
-          <main className="mt-6 flex flex-col items-center gap-6">
-            <div className="panel w-full max-w-md rounded-2xl p-6 text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <span
-                  className={`h-3 w-3 rounded-full ${connected ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                />
-                <span className="text-sm text-mist">
-                  {connected ? 'Connecté au serveur' : 'Connexion...'}
-                </span>
-              </div>
+          <main className="mt-10">
+            <div className="mb-5 text-center">
+              <h1 className="text-2xl font-extrabold tracking-wide text-white sm:text-3xl">
+                Choix des couleurs
+              </h1>
+              <p className="mt-1.5 text-sm text-mist-dim">Personnalisez vos jetons</p>
+            </div>
 
-              <p className="text-xs font-semibold tracking-[0.3em] text-mist-dim uppercase mb-3">
-                Code de la salle
-              </p>
-              <div className="flex items-center gap-3 mb-6">
-                <span className="flex-1 font-mono text-2xl font-bold text-white tracking-widest bg-ink/50 px-4 py-3 rounded-xl select-all">
-                  {roomCode}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-ghost p-3"
-                  onClick={copyRoomCode}
-                  aria-label="Copier le code"
-                >
-                  <IconCopy className="h-5 w-5" />
-                </button>
-              </div>
+            <PlayerColorSettings
+              mode="pvp"
+              colors={colors}
+              onSelect={changePlayerColor}
+              onReset={resetPlayerColors}
+            />
 
-              <p className="text-sm text-mist-dim mb-6">
-                Partagez ce code avec un ami pour jouer ensemble
-              </p>
-
-              <div className="flex items-center justify-center gap-3 text-sm text-mist-dim">
-                <span className={`flex items-center gap-1.5 ${wsPlayer === 'red' ? 'text-electric-2' : 'text-mist-dim'}`}>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: colors.red.hex }} />
-                  Vous (Rouge)
-                </span>
-                <span className="text-mist-dim">·</span>
-                <span className={`flex items-center gap-1.5 ${wsPlayer === 'blue' ? 'text-electric-2' : 'text-mist-dim'}`}>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: colors.blue.hex }} />
-                  Adversaire (Bleu)
-                  {opponentReady && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
-                </span>
-              </div>
-
-              {onlineError && (
-                <p className="mt-4 text-sm text-rose-400" role="alert">{onlineError}</p>
-              )}
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button type="button" className="btn btn-ghost flex-1" onClick={goToMenu}>
+                Retour
+              </button>
+              <button type="button" className="btn btn-primary flex-1" onClick={goToMenu}>
+                Valider
+              </button>
             </div>
           </main>
         </div>
@@ -388,13 +411,112 @@ export default function App() {
     )
   }
 
-  const activeLabel = playerLabel(game.currentPlayer, mode)
+  if (screen === 'settings') {
+    return (
+      <SettingsScreen
+        muted={muted}
+        scores={scores}
+        history={history}
+        colors={colors}
+        onToggleMute={toggleMute}
+        onResetScores={resetScores}
+        onRules={() => setRulesOpen(true)}
+        onBack={goToMenu}
+      />
+    )
+  }
+
+  const isDraw = game.status === 'draw'
+  const isFinished = game.status !== 'playing'
+
+  const labels: Record<Player, string> = isOnline
+    ? {
+        red: wsPlayer === 'red' ? 'Vous' : 'Adversaire',
+        blue: wsPlayer === 'blue' ? 'Vous' : 'Adversaire',
+      }
+    : gameMode === 'ai'
+      ? { red: 'Vous', blue: 'IA' }
+      : { red: 'Joueur 1', blue: 'Joueur 2' }
+
+  const modeDetail =
+    gameMode === 'ai'
+      ? `Niveau ${difficulty === 'easy' ? 'facile' : difficulty === 'medium' ? 'moyen' : 'difficile'}`
+      : gameMode === 'online'
+        ? `Salon ${roomCode}`
+        : 'Premier à 4 alignements'
+
+  const playerPanel = (slot: Player) => {
+    const hex = slot === 'red' ? colors.red.hex : colors.blue.hex
+    const active = game.status === 'playing' && game.currentPlayer === slot
+    const label = labels[slot]
+    const pips = Math.min(scores[slot], 6)
+
+    let stateText: string
+    if (isFinished) {
+      stateText = game.winner === slot ? 'Victoire' : isDraw ? 'Match nul' : 'Défaite'
+    } else if (active) {
+      if (gameMode === 'ai' && slot === AI_PLAYER) {
+        stateText = aiThinking ? 'L\u2019IA réfléchit…' : 'Au tour de l\u2019IA'
+      } else if (isOnline && slot === wsPlayer) {
+        stateText = 'À vous de jouer'
+      } else if (isOnline) {
+        stateText = 'En attente…'
+      } else {
+        stateText = 'Coup en cours'
+      }
+    } else {
+      stateText = 'Au tour adverse'
+    }
+
+    return (
+      <div
+        className={`panel flex min-w-0 flex-1 items-center gap-3.5 rounded-2xl px-4 py-3 transition-all duration-300 ${
+          active ? 'turn-live' : isFinished ? '' : 'turn-idle'
+        }`}
+        style={active ? { borderColor: `${hex}66` } : undefined}
+      >
+        <span
+          className="h-10 w-10 shrink-0 rounded-full"
+          style={{
+            background: `radial-gradient(circle at 32% 26%, #ffffff88 0%, ${hex} 55%, #00000066 100%)`,
+            boxShadow: active ? `0 0 18px ${hex}` : `0 0 8px ${hex}66`,
+          }}
+          aria-hidden="true"
+        />
+        <span className="min-w-0">
+          <span className="block truncate font-extrabold tracking-wide text-white">{label}</span>
+          <span
+            className={`block text-[0.72rem] font-semibold ${
+              active ? 'text-white/85' : 'text-mist-dim'
+            }`}
+          >
+            {active && game.status === 'playing' && !(gameMode === 'ai' && slot !== AI_PLAYER) && !(isOnline && slot !== wsPlayer) ? (
+              <span className="anim-blink">{stateText}</span>
+            ) : (
+              stateText
+            )}
+          </span>
+        </span>
+        {pips > 0 && (
+          <span className="ml-auto flex shrink-0 items-center gap-1" aria-label={`${scores[slot]} victoires`}>
+            {Array.from({ length: pips }, (_, index) => (
+              <span
+                key={index}
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: hex, boxShadow: `0 0 6px ${hex}` }}
+              />
+            ))}
+          </span>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="arcade-bg relative min-h-dvh">
       <div className="arcade-grid pointer-events-none absolute inset-0" />
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
         <header className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -407,30 +529,10 @@ export default function App() {
           </button>
 
           <div className="text-center">
-            <p className="text-[11px] font-semibold tracking-[0.35em] text-electric-2 uppercase">
-              Fouria
-            </p>
-            <p className="text-xs text-mist-dim">
-              {MODE_LABELS[mode]}
-              {mode === 'ai' ? ` · ${DIFFICULTY_LABELS[difficulty]}` : ''}
-              {isOnlineMode && connected && (
-                <>
-                  {' '}
-                  <span className="flex items-center gap-1 ml-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <IconWifi className="h-3 w-3" />
-                  </span>
-                </>
-              )}
-              {isOnlineMode && !connected && (
-                <>
-                  {' '}
-                  <span className="flex items-center gap-1 ml-1 text-rose-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                    <IconWifiOff className="h-3 w-3" />
-                  </span>
-                </>
-              )}
+            <p className="logo-chrome text-sm tracking-[0.28em] sm:text-base">FOURIA</p>
+            <p className="micro-label mt-0.5">
+              {MODE_LABELS[gameMode]}
+              {isOnline ? ` · ${roomCode}` : ''}
             </p>
           </div>
 
@@ -445,39 +547,27 @@ export default function App() {
           </button>
         </header>
 
-        <main className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <main className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
           <div className="flex flex-col gap-4">
-            <div className="panel mx-auto flex w-full max-w-[640px] items-center justify-between gap-3 rounded-2xl px-4 py-3">
-              <span className="flex items-center gap-3">
-                <span
-                  className={`h-4 w-4 rounded-full ${
-                    boardLocked && game.status === 'playing' && isAiTurn ? 'anim-blink' : ''
-                  }`}
-                  style={{
-                    background:
-                      game.currentPlayer === 'red' ? colors.red.hex : colors.blue.hex,
-                  }}
-                />
-                <span className="text-sm text-mist">
-                  {game.status === 'playing' ? (
-                    isAiTurn ? (
-                      <>{aiThinking ? 'L\'IA réfléchit…' : 'Au tour de l\'IA'}</>
-                    ) : isOnlineMode && !isMyTurn ? (
-                      <>En attente de <strong className="font-semibold text-white">{activeLabel}</strong>…</>
-                    ) : (
-                      <>
-                        Au tour de <strong className="font-semibold text-white">{activeLabel}</strong>
-                      </>
-                    )
-                  ) : (
-                    'Partie terminée'
-                  )}
-                </span>
+            <div className="flex items-stretch gap-2 sm:gap-3" role="group" aria-label="Joueurs">
+              {playerPanel('red')}
+              <span
+                className="flex shrink-0 items-center px-0.5 font-black tracking-widest text-mist-dim sm:px-1"
+                aria-hidden="true"
+              >
+                VS
               </span>
-              <span className="text-[11px] tracking-wider text-mist-dim uppercase tabular-nums">
-                {game.moveCount}/42
-              </span>
+              {playerPanel('blue')}
             </div>
+
+            {onlineError && (
+              <p
+                className="panel rounded-xl px-4 py-2.5 text-center text-sm font-semibold text-rose-400"
+                role="alert"
+              >
+                {onlineError}
+              </p>
+            )}
 
             <Board
               board={game.board}
@@ -491,53 +581,20 @@ export default function App() {
             />
           </div>
 
-          <ScorePanel
+          <GameSidebar
+            mode={gameMode}
+            modeDetail={modeDetail}
+            game={game}
             scores={scores}
-            history={history}
-            mode={mode}
-            modeLabel={
-              mode === 'ai'
-                ? `${MODE_LABELS.ai} · ${DIFFICULTY_LABELS[difficulty]}`
-                : MODE_LABELS[mode]
-            }
+            labels={labels}
             colors={colors}
+            rematch={rematch}
+            onAbandon={goToMenu}
+            onRules={() => setRulesOpen(true)}
             onReplay={replay}
-            onResetScores={resetScores}
           />
         </main>
       </div>
-
-      {game.status !== 'playing' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 px-4 backdrop-blur-md">
-          <div className="anim-rise panel relative w-full max-w-md rounded-[28px] p-7 text-center sm:p-9">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.06]">
-              <IconTrophy className="h-8 w-8 text-electric-2" />
-            </div>
-
-            <p className="text-xs font-semibold tracking-[0.3em] text-mist-dim uppercase">
-              Partie terminée
-            </p>
-            <h2 className="mt-2 text-3xl font-extrabold sm:text-4xl text-electric-2">
-              {game.status === 'draw' ? 'Égalité !' : `${playerLabel(game.winner!, mode)} a gagné !`}
-            </h2>
-            <p className="mt-3 text-sm text-mist-dim">
-              {game.status === 'draw'
-                ? 'Aucun alignement sur cette manche. On rejoue ?'
-                : `${MODE_LABELS[mode]} · ${scores.red} – ${scores.blue} au total}`}
-            </p>
-
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button type="button" className="btn btn-primary flex-1" onClick={replay}>
-                <IconPlay className="h-4 w-4" />
-                {isOnlineMode ? 'Demander revanche' : 'Rejouer'}
-              </button>
-              <button type="button" className="btn btn-ghost flex-1" onClick={goToMenu}>
-                Menu principal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

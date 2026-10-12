@@ -114,3 +114,67 @@ export function IconWifiOff({ className = base }: IconProps) {
     </svg>
   )
 }
+
+export function IconPalette({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a1.8 1.8 0 0 1 0-3.6h4.6A4.4 4.4 0 0 0 21 8C21 5.2 17 3 12 3z" strokeLinejoin="round" />
+      <circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="7" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="7.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+export function IconSettings({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <circle cx="12" cy="12" r="3.1" />
+      <path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.8-1.4-2-3.4-2.1.9a7.6 7.6 0 0 0-2.6-1.5L14.2 2h-4l-.3 2.1a7.6 7.6 0 0 0-2.6 1.5l-2.1-.9-2 3.4L5 10.5a7.7 7.7 0 0 0 0 3l-1.8 1.4 2 3.4 2.1-.9a7.6 7.6 0 0 0 2.6 1.5l.3 2.1h4l.3-2.1a7.6 7.6 0 0 0 2.6-1.5l2.1.9 2-3.4-1.8-1.4z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconFlag({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M5 21V4" strokeLinecap="round" />
+      <path d="M5 4.5h11l-1.8 3.6L16 12H5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function IconBook({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5z" strokeLinejoin="round" />
+      <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconCheck({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={className}>
+      <path d="M4.5 12.5l5 5 10-11" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconHourglass({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M7 3h10M7 21h10M8 3v3.2c0 1.6 4 3.4 4 5.8s-4 4.2-4 5.8V21M16 3v3.2c0 1.6-4 3.4-4 5.8s4 4.2 4 5.8V21" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconLuma({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="currentColor" strokeWidth="1.6" opacity="0.55" />
+      <path d="M8.6 6.8v10.4h6.8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16.4" cy="7.6" r="1.5" fill="currentColor" />
+    </svg>
+  )
+}

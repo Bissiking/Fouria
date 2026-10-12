@@ -78,28 +78,49 @@ export function Board({
   }
 
   return (
-    <div className="board-frame mx-auto w-[min(94vw,640px)] rounded-[26px] p-[2.6%] sm:rounded-[34px]">
-      <div className="relative">
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">{cells}</div>
-        <div className="absolute inset-0 grid grid-cols-7 gap-1.5 sm:gap-2.5">
-          {Array.from({ length: COLS }, (_, col) => (
-            <button
-              key={col}
-              type="button"
-              disabled={disabled || getDropRow(board, col) === -1}
-              aria-label={`Jouer dans la colonne ${col + 1}`}
-              onMouseEnter={() => setHoverColumn(col)}
-              onMouseLeave={() => setHoverColumn((current) => (current === col ? null : current))}
-              onFocus={() => setHoverColumn(col)}
-              onBlur={() => setHoverColumn((current) => (current === col ? null : current))}
+    <div className="mx-auto w-[min(94vw,640px)]">
+      <div className="board-frame rounded-[26px] p-[2.6%] sm:rounded-[34px]">
+        <div className="relative">
+          <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">{cells}</div>
+          <div className="absolute inset-0 grid grid-cols-7 gap-1.5 sm:gap-2.5">
+            {Array.from({ length: COLS }, (_, col) => (
+              <button
+                key={col}
+                type="button"
+                disabled={disabled || getDropRow(board, col) === -1}
+                aria-label={`Jouer dans la colonne ${col + 1}`}
+                onMouseEnter={() => setHoverColumn(col)}
+                onMouseLeave={() => setHoverColumn((current) => (current === col ? null : current))}
+                onFocus={() => setHoverColumn(col)}
+                onBlur={() => setHoverColumn((current) => (current === col ? null : current))}
                 onClick={() => {
                   setHoverColumn(null)
                   onColumnClick(col)
                 }}
-              className="rounded-2xl transition-colors duration-150 hover:bg-white/[0.07] disabled:hover:bg-transparent"
-            />
-          ))}
+                className="rounded-2xl transition-colors duration-150 hover:bg-white/[0.07] disabled:hover:bg-transparent"
+              />
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-7 gap-1.5 px-[2.6%] sm:gap-2.5" aria-hidden="true">
+        {Array.from({ length: COLS }, (_, col) => {
+          const columnFull = getDropRow(board, col) === -1
+          const active = !disabled && !columnFull && hoverColumn === col
+          return (
+            <span key={col} className="text-center">
+              <span
+                className={`mx-auto block h-1.5 w-1.5 rounded-full transition-all duration-150 ${
+                  active ? 'bg-blue-hi shadow-[0_0_10px_rgba(110,168,255,0.9)]' : 'bg-white/15'
+                }`}
+              />
+              <span className="col-num mt-1 block" data-active={active}>
+                {col + 1}
+              </span>
+            </span>
+          )
+        })}
       </div>
     </div>
   )

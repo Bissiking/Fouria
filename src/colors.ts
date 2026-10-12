@@ -45,8 +45,8 @@ export const PLAYER_COLORS: readonly PlayerColor[] = [
 ]
 
 export const DEFAULT_PLAYER_COLORS: PlayerColorPreference = {
-  red: 'corail',
-  blue: 'electrique',
+  red: 'electrique',
+  blue: 'ambre',
 }
 
 /** Background of an empty board cell: the contrast baseline for discs. */
