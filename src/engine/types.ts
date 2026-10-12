@@ -6,7 +6,7 @@ export type Board = Cell[][]
 
 export type GameStatus = 'playing' | 'won' | 'draw'
 
-export type GameMode = 'pvp' | 'ai'
+export type GameMode = 'pvp' | 'ai' | 'online'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 

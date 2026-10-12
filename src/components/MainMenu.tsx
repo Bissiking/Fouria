@@ -7,7 +7,7 @@ import {
   playerLabel,
   type Scores,
 } from '../types'
-import { IconCpu, IconPlay, IconUsers, IconVolume } from './icons'
+import { IconCpu, IconPlay, IconUsers, IconVolume, IconWifi } from './icons'
 import { PlayerColorSettings } from './PlayerColorSettings'
 
 interface MainMenuProps {
@@ -21,6 +21,8 @@ interface MainMenuProps {
   onSelectPlayerColor: (player: Player, colorId: ColorId) => void
   onResetPlayerColors: () => void
   onStart: () => void
+  onCreateRoom: () => void
+  onJoinRoom: (code: string) => void
   onToggleMute: () => void
 }
 
@@ -37,6 +39,8 @@ export function MainMenu({
   onSelectPlayerColor,
   onResetPlayerColors,
   onStart,
+  onCreateRoom,
+  onJoinRoom,
   onToggleMute,
 }: MainMenuProps) {
   const modes: Array<{
@@ -56,6 +60,12 @@ export function MainMenu({
       title: MODE_LABELS.ai,
       description: 'Affrontez la machine, du débutant à l’expert.',
       icon: <IconCpu className="h-5 w-5" />,
+    },
+    {
+      id: 'online',
+      title: MODE_LABELS.online,
+      description: 'Jouez avec un ami à distance via un code de salle.',
+      icon: <IconWifi className="h-5 w-5" />,
     },
   ]
 
@@ -111,10 +121,10 @@ export function MainMenu({
             })}
           </div>
 
-          {mode === 'ai' && (
+{mode === 'ai' && (
             <div className="mt-5">
               <h2 className="text-xs font-semibold tracking-[0.2em] text-mist-dim uppercase">
-                Niveau de l’IA
+                Niveau de l'IA
               </h2>
               <div className="mt-3 flex flex-wrap gap-2">
                 {DIFFICULTIES.map((level) => (
@@ -131,6 +141,51 @@ export function MainMenu({
                 ))}
               </div>
               <p className="mt-3 text-sm text-mist-dim">{DIFFICULTY_HINTS[difficulty]}</p>
+            </div>
+          )}
+
+          {mode === 'online' && (
+            <div className="mt-5 space-y-4">
+              <h2 className="text-xs font-semibold tracking-[0.2em] text-mist-dim uppercase">
+                Jouer en ligne
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="btn btn-primary py-4"
+                  onClick={onCreateRoom}
+                >
+                  <IconWifi className="h-5 w-5" />
+                  Créer une salle
+                </button>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    placeholder="Code de la salle"
+                    className="input font-mono text-center tracking-widest uppercase text-lg"
+                    maxLength={6}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onJoinRoom(e.currentTarget.value.toUpperCase())
+                      }
+                    }}
+                    onChange={(e) => e.currentTarget.value.toUpperCase()}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const input = document.querySelector('input[placeholder="Code de la salle"]') as HTMLInputElement
+                      if (input?.value) onJoinRoom(input.value.toUpperCase())
+                    }}
+                  >
+                    Rejoindre
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-mist-dim text-center">
+                Partagez le code à 6 caractères avec un ami pour jouer ensemble
+              </p>
             </div>
           )}
         </section>
@@ -182,10 +237,12 @@ export function MainMenu({
           </button>
         </section>
 
-        <button type="button" className="btn btn-primary w-full py-4 text-lg" onClick={onStart}>
-          <IconPlay />
-          Lancer la partie
-        </button>
+        {mode !== 'online' && (
+          <button type="button" className="btn btn-primary w-full py-4 text-lg" onClick={onStart}>
+            <IconPlay />
+            Lancer la partie
+          </button>
+        )}
       </main>
     </div>
   )

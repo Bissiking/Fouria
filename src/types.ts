@@ -31,9 +31,11 @@ export const DIFFICULTY_HINTS: Record<Difficulty, string> = {
 export const MODE_LABELS: Record<GameMode, string> = {
   pvp: '2 joueurs',
   ai: 'Contre l IA',
+  online: 'En ligne',
 }
 
 export function playerLabel(player: Player, mode: GameMode): string {
   if (mode === 'ai') return player === 'red' ? 'Vous' : 'IA'
+  if (mode === 'online') return player === 'red' ? 'Vous' : 'Adversaire'
   return player === 'red' ? 'Joueur 1' : 'Joueur 2'
 }
